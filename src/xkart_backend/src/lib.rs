@@ -100,7 +100,7 @@ fn icrc1_transfer(args: TransferArgs) -> Result<u64, TransferError> {
         *balances.entry(from_account).or_insert(0) -= args.amount;
         *balances.entry(args.to).or_insert(0) += args.amount;
         
-        Ok(0) // Return a dummy transaction index
+        Ok(0) 
     })
 }
 
@@ -391,13 +391,7 @@ fn get_caller() -> Principal {
 
 /// Checks if the given principal is an admin.
 fn is_admin(principal: Principal) -> bool {
-    // Implement your admin check logic here
-    // For example, you could have a list of admin principals
-    true // Temporary, replace with actual logic
+    
+    true 
 }
 
-/// Greet function (kept for compatibility).
-#[query]
-fn greet(name: String) -> String {
-    format!("Hello, {}!", name)
-}
