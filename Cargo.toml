@@ -1,0 +1,5 @@
+[workspace]
+members = [
+    "src/xkart_backend"
+]
+resolver = "2"

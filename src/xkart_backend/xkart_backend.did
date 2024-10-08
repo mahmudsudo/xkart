@@ -1,0 +1,66 @@
+type Race = record {
+    id : nat64;
+    name : text;
+    participants : vec principal;
+    status : RaceStatus;
+    winner : opt principal;
+    bets : vec Bet;
+};
+
+type RaceStatus = variant {
+    Upcoming;
+    InProgress;
+    Completed;
+};
+
+type Bet = record {
+    race_id : nat64;
+    bettor : principal;
+    amount : nat64;
+    prediction : principal;
+};
+
+type Token = record {
+    id : nat64;
+    owner : principal;
+    amount : nat64;
+};
+
+type NFT = record {
+    id : nat64;
+    owner : principal;
+    metadata : text;
+    listed_price : opt nat64;
+};
+
+service : {
+    // Race Management
+    create_race : (name : text) -> (variant { Ok : nat64; Err : text });
+    join_race : (race_id : nat64) -> (variant { Ok; Err : text });
+    start_race : (race_id : nat64) -> (variant { Ok; Err : text });
+    end_race : (race_id : nat64, winner : principal) -> (variant { Ok; Err : text });
+
+    // Betting System
+    place_bet : (race_id : nat64, amount : nat64, prediction : principal) -> (variant { Ok; Err : text });
+
+    // Tokenization
+    mint_tokens : (amount : nat64) -> (variant { Ok; Err : text });
+    transfer_tokens : (to : principal, amount : nat64) -> (variant { Ok; Err : text });
+
+    // NFT Functionality
+    mint_nft : (metadata : text) -> (variant { Ok : nat64; Err : text });
+    transfer_nft : (nft_id : nat64, to : principal) -> (variant { Ok; Err : text });
+    list_nft : (nft_id : nat64, price : nat64) -> (variant { Ok; Err : text });
+    buy_nft : (nft_id : nat64) -> (variant { Ok; Err : text });
+
+    // Query functions
+    get_race : (race_id : nat64) -> (opt Race) query;
+    get_user_tokens : (user : principal) -> (opt Token) query;
+    get_nft : (nft_id : nat64) -> (opt NFT) query;
+    get_all_races : () -> (vec Race) query;
+    get_user_nfts : (user : principal) -> (vec NFT) query;
+    get_listed_nfts : () -> (vec NFT) query;
+
+    // Original greet function
+    greet : (name : text) -> (text) query;
+}
