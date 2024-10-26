@@ -1,10 +1,75 @@
+// Basic types
+type Account = record {
+    owner: principal;
+    subaccount: opt vec nat8;
+};
+
+type TransferArgs = record {
+    from_subaccount: opt vec nat8;
+    to: Account;
+    amount: nat64;
+    fee: opt nat64;
+    memo: opt vec nat8;
+    created_at_time: opt nat64;
+};
+
+type TransferError = variant {
+    BadFee: record { expected_fee: nat64 };
+    BadBurn: record { min_burn_amount: nat64 };
+    InsufficientFunds: record { balance: nat64 };
+    TooOld;
+    CreatedInFuture: record { ledger_time: nat64 };
+    Duplicate: record { duplicate_of: nat64 };
+    TemporarilyUnavailable;
+    GenericError: record { error_code: nat64; message: text };
+};
+
+// Tokenization types
+type TokenizationCampaign = record {
+    id: nat64;
+    name: text;
+    description: text;
+    target_amount: nat64;
+    current_amount: nat64;
+    asset_type: AssetType;
+    status: CampaignStatus;
+    investors: vec record { principal; nat64 };
+    end_time: nat64;
+};
+
+type AssetType = variant {
+    Arena;
+    Driver;
+    Kart;
+};
+
+type CampaignStatus = variant {
+    Active;
+    Completed;
+    Failed;
+};
+
+// Race types
 type Race = record {
-    id : nat64;
-    name : text;
-    participants : vec principal;
-    status : RaceStatus;
-    winner : opt principal;
-    bets : vec Bet;
+    id: nat64;
+    name: text;
+    arena_id: nat64;
+    participants: vec RaceParticipant;
+    status: RaceStatus;
+    winner: opt principal;
+    bets: vec Bet;
+    start_time: opt nat64;
+    end_time: opt nat64;
+    entry_fee: nat64;
+    total_prize_pool: nat64;
+};
+
+type RaceParticipant = record {
+    player: principal;
+    kart_id: nat64;
+    driver_id: nat64;
+    current_position: nat32;
+    lap_times: vec nat64;
 };
 
 type RaceStatus = variant {
@@ -14,53 +79,88 @@ type RaceStatus = variant {
 };
 
 type Bet = record {
-    race_id : nat64;
-    bettor : principal;
-    amount : nat64;
-    prediction : principal;
+    race_id: nat64;
+    bettor: principal;
+    amount: nat64;
+    prediction: principal;
 };
 
-type Token = record {
-    id : nat64;
-    owner : principal;
-    amount : nat64;
-};
-
+// NFT types
 type NFT = record {
-    id : nat64;
-    owner : principal;
-    metadata : text;
-    listed_price : opt nat64;
+    id: nat64;
+    owner: principal;
+    nft_type: NFTType;
+    metadata: NFTMetadata;
+    listed_price: opt nat64;
+    rarity: Rarity;
+    creation_time: nat64;
+    transaction_history: vec Transaction;
+};
+
+type NFTType = variant {
+    Driver;
+    Kart;
+    Arena;
+};
+
+type NFTMetadata = record {
+    name: text;
+    description: text;
+    image_url: text;
+    attributes: vec record { text; text };
+};
+
+type Rarity = variant {
+    Common;
+    Rare;
+    Legendary;
+};
+
+type Transaction = record {
+    timestamp: nat64;
+    from: principal;
+    to: principal;
+    price: opt nat64;
 };
 
 service : {
-    // Race Management
-    create_race : (name : text) -> (variant { Ok : nat64; Err : text });
-    join_race : (race_id : nat64) -> (variant { Ok; Err : text });
-    start_race : (race_id : nat64) -> (variant { Ok; Err : text });
-    end_race : (race_id : nat64, winner : principal) -> (variant { Ok; Err : text });
+    // ICRC-1 Token Functions
+    icrc1_transfer: (TransferArgs) -> (variant { Ok: nat64; Err: TransferError });
+    icrc1_balance_of: (Account) -> (nat64) query;
+    icrc1_total_supply: () -> (nat64) query;
+    icrc1_mint: (Account, nat64) -> (variant { Ok: null; Err: text });
 
-    // Betting System
-    place_bet : (race_id : nat64, amount : nat64, prediction : principal) -> (variant { Ok; Err : text });
+    // Tokenization Functions
+    create_tokenization_campaign: (name: text, description: text, target_amount: nat64, asset_type: AssetType, duration: nat64) -> (variant { Ok: nat64; Err: text });
+    invest_in_campaign: (campaign_id: nat64, amount: nat64) -> (variant { Ok: null; Err: text });
+    get_campaign: (campaign_id: nat64) -> (variant { Ok: TokenizationCampaign; Err: text }) query;
+    get_active_campaigns: () -> (vec TokenizationCampaign) query;
 
-    // Tokenization
-    mint_tokens : (amount : nat64) -> (variant { Ok; Err : text });
-    transfer_tokens : (to : principal, amount : nat64) -> (variant { Ok; Err : text });
+    // Race Functions
+    create_race: (name: text, arena_id: nat64, entry_fee: nat64) -> (variant { Ok: nat64; Err: text });
+    join_race: (race_id: nat64, kart_id: nat64, driver_id: nat64) -> (variant { Ok: null; Err: text });
+    update_race_progress: (race_id: nat64, participant_positions: vec record { principal; nat32 }, lap_times: vec record { principal; nat64 }) -> (variant { Ok: null; Err: text });
+    end_race: (race_id: nat64) -> (variant { Ok: null; Err: text });
+    distribute_race_rewards: (race_id: nat64) -> (variant { Ok: null; Err: text });
+    get_race: (race_id: nat64) -> (variant { Ok: Race; Err: text }) query;
+    get_upcoming_races: () -> (vec Race) query;
 
-    // NFT Functionality
-    mint_nft : (metadata : text) -> (variant { Ok : nat64; Err : text });
-    transfer_nft : (nft_id : nat64, to : principal) -> (variant { Ok; Err : text });
-    list_nft : (nft_id : nat64, price : nat64) -> (variant { Ok; Err : text });
-    buy_nft : (nft_id : nat64) -> (variant { Ok; Err : text });
+    // NFT Functions
+    mint_nft: (
+        name: text,
+        description: text,
+        image_url: text,
+        nft_type: NFTType,
+        rarity: Rarity,
+        attributes: vec record { text; text }
+    ) -> (variant { Ok: nat64; Err: text });
+    transfer_nft: (nft_id: nat64, to: principal) -> (variant { Ok: null; Err: text });
+    list_nft: (nft_id: nat64, price: nat64) -> (variant { Ok: null; Err: text });
+    buy_nft: (nft_id: nat64) -> (variant { Ok: null; Err: text });
+    get_nft: (nft_id: nat64) -> (variant { Ok: NFT; Err: text }) query;
+    get_user_nfts: (user: principal) -> (vec NFT) query;
+    get_listed_nfts: () -> (vec NFT) query;
 
-    // Query functions
-    get_race : (race_id : nat64) -> (opt Race) query;
-    get_user_tokens : (user : principal) -> (opt Token) query;
-    get_nft : (nft_id : nat64) -> (opt NFT) query;
-    get_all_races : () -> (vec Race) query;
-    get_user_nfts : (user : principal) -> (vec NFT) query;
-    get_listed_nfts : () -> (vec NFT) query;
-
-    // Original greet function
-    greet : (name : text) -> (text) query;
+    // Admin Functions
+    add_admin: (principal) -> (variant { Ok: null; Err: text });
 }
